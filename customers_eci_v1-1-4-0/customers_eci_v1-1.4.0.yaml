@@ -1,0 +1,2325 @@
+openapi: 3.0.1
+info:
+  title: customers_eci_v1
+  description: API para modificar los datos de los clientes
+  version: 1.4.0
+servers:
+ -
+  url: /customers/eci/v1
+paths:
+  /customers:
+    post:
+      tags:
+       - customer
+      summary: Alta de cliente.
+      description: "Servicio para dar de alta un nuevo cliente. \n \n **Restricciones en datos personales:** \n - El dato \"**fecha de nacimiento**\" no podrá representar una fecha anterior al 31-12-1899. \n \n  **Restricciones en campos de dirección:**\n- Este  servicio **NO** permite la inclusión del campo \"**ine**\" en la libreta de direcciones, es un campo sólo modificable por *MDM*.\n- El campo \"**postal_code**\" debe comenzar con el mismo código que se encuentra en el campo \"**address_region.identifier**\" o, en su defecto, con el código de provincia inferido del campo \"**address_region.name**\". De no ser así se devolverá un error de la petición.\n- Sólo se admitirá una dirección con el tag \"**shipping**\" rechazando la petición cuando no sea así.\n"
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+      requestBody:
+        $ref: '#/components/requestBodies/body_post_customer'
+      responses:
+        "200":
+          description: "OK, se ha dado de alta la información del cliente."
+          content: {}
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-codegen-request-body-name: customer
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+  /customers/search:
+    post:
+      tags:
+       - customer
+      summary: Servicio de búsqueda de clientes
+      description: "Servicio de consulta de customers. Permite seleccionar los clientes por alguno de los campos identificadores existentes.\n\nEl servicio se comporta de dos formas distintas en función de la estructura de entrada. Es importante destacar que no está permitido\nel uso simultáneo de ambas estructuras de entrada. En tal caso, se devolverá un error.\n\n<H3>Uso del objeto de entrada 'or_operator_search'</H3>\nEn el caso de que se rellenen los campos dentro del objeto **\"or_operator_search\"** la búsqueda se realizará exclusivamente por:\n  - Aquellos identificadores listados en el campo \"list\" que coincidan exactamente con el valor indicado en el campo \"value\".\n  - La búsqueda se comporta como un **‘OR’**, es decir, se buscarán los registros que cumplan alguna de las condiciones de búsqueda.\n  - En el campo \"list\" se indican los campos por lo que se realizará la búsqueda. Es obligatorio introducir al menos uno.\n\nLos valores autorizados en el campo **\"list\"** son:\n  - **\"identifier\"** para buscar en el 'cuc'\n  - **\"eci_card\"** para buscar en la TECI\n  - **\"id_document\"** para buscar en el número de documento de identidad\n  - **\"email\"** para buscar en la lista de emails.\n\n<H3>Uso del objeto de entrada 'customer'</H3>\nEn el caso de que se rellenen los campos dentro del objeto **\"customer\"** se deberá tener en cuenta:\n  - Es obligatorio indicar al menos uno de los campos de búsqueda, no se permite una búsqueda sin filtrar. \n  - En el caso de incluir varios parámetros, la búsqueda se comporta como un **‘AND’**, es decir, se buscarán los registros que cumplan todas las condiciones de búsqueda.\n\n No se admiten expresiones regulares, aunque sí que se ignorará que los campos estén en mayúsculas o minúsculas, y los caracteres acentuados.\n\n Se puede buscar por:\n\n   -   El ***nombre*** del cliente\n   -   El ***primer apellido*** del cliente\n   -   El ***segundo apellido*** del cliente\n   -   El número de ***Tarjeta de Compra ECI***.\n   -   El  ***email*** del cliente.\n   -   El  ***pairwise*** asignado al cliente.\n   -   El  ***UATG*** asociado al cliente en Profile\n   -   Un  ***teléfono*** de contacto del cliente.\n   -   Un  ***documento*** de identificación externo al Grupo El Corte Inglés:\n   -   Un  _NIF_  español o portugues.\n   -   Un número de  _Pasaporte_.\n   -   Un  _NIE_.\n   -   etc.\n\n Al utilizar un documento de identificación ajeno al Grupo El Corte Inglés pueden localizarse varios clientes diferentes; en este caso el parámetro ***id_document.is_verified*** permite filtrar la lista para que sólo se obtenga aquel cliente que explícitamente haya validado que le pertenece el documento.\n\n<H3>Respuesta del servicio</H3>\n El servicio devolverá  **exclusivamente**  la información personal de cada cliente localizado; adicionalmente, con el parámetro  ***expand***, se pueden solicitar:\n\n   -   ***address:*** Las ***direcciones postales*** del cliente.\n   -   ***telephone:*** Los ***teléfonos*** del cliente.\n   -   ***email:*** Los ***emails*** del cliente.\n   -   ***payment_card:*** Los ***métodos de pago***.\n   -   ***tag:*** El conjunto de ***tags***.\n   -   ***collective:*** Los ***colectivos***.\n   -   ***promotion:*** Los ***planes de marketing***.\n   -   ***subscription:*** Las ***suscripciones***.\n   -   ***eci_card:*** Las ***tarjetas de compra ECI***.\n   -   ***order_preferences:*** Las ***preferencias*** en los pedidos de supermercado.\n   -   ***identifier_list:*** Los ***identificadores*** que tiene asociado el cliente.\n   -   ***consent:*** Los ***consentimientos*** con las respuestas del cliente.\n\n También se puede pedir la inclusión de más información, con el parámetro ***include***. Se puede solicitar:\n\n   -   ***address.tag:*** Los ***tags*** dentro de las ***direcciones postales***.\n   -   ***telephone.tag:*** Los ***tags*** dentro de los ***teléfonos***.\n   -   ***email.tag:*** Los ***tags*** dentro de los ***emails***.\n   -   ***payment_card.tag:*** Los ***tags*** dentro de los ***métodos de pago***.\n\n El servicio opcionalmente permite y soporta paginación. Con el parámetro ***current_page***, se indica la página (comenzando en **0**)  y con el parámetro ***page_size***, se indica cuantos clientes se deben mostrar en cada página, con un mínimo de 1 y un máximo de 10.\n Por ejemplo, si mi búsqueda encuentra 14 clientes, y defino un ***page_size*** de 5, la búsqueda tendrá 3 páginas: La 0 con 5 clientes, la 1 con 5 clientes y la 2 con 4 clientes.\n\n Aunque no se usen los parámetros de paginación, el servicio siempre devuelve la siguiente información:\n\n   -   El índice de la página actual.\n   -   El número máximo de clientes a mostrar por página.\n   -   El número de clientes de la página actual.\n   -   El número total de páginas.\n   -   El número total de clientes encontrados.\n   -   Si es la última página.\n"
+      requestBody:
+        $ref: '#/components/requestBodies/body_customers_search'
+      responses:
+        "200":
+          description: OK. Se devuelve el resultado de la búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer_pagination_object'
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-codegen-request-body-name: body_customers_search
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+  /customers/{identifier}:
+    get:
+      tags:
+       - customer
+      summary: Devuelve la información de un cliente.
+      description: |
+        Obtiene la información personal de la cuenta del cliente con el código **identifier** asociado en Registro Único.
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/param_identifier'
+      responses:
+        "200":
+          description: OK. Se devuelve el recurso pedido
+          headers:
+            ETag:
+              description: Cabecera HTTP donde se debe indica el valor ETag del recurso. Se usa para garantizar el control de concurrencia optimista.
+              style: simple
+              explode: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer'
+        "203":
+          description: "OK. Se devuelve el recurso pedido, pero la información del cliente en Registro Único está asociada a un **identifier** diferente debido a una fusión de cuentas."
+          headers:
+            ETag:
+              description: Cabecera HTTP donde se debe indica el valor ETag del recurso. Se usa para garantizar el control de concurrencia optimista.
+              style: simple
+              explode: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer'
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+    put:
+      tags:
+       - customer
+      summary: Reemplazo completo de los datos de un cliente.
+      description: "Servicio para modificar un cliente existente.\nPermite modificar los datos personales de un cliente excepto los datos referentes a puntos de contacto, que deberán ser modificados usando para ello los servicios que operan sobre puntos de contacto de un cliente. \nModifica parcialmente la información del cliente sustituyendo sus atributos por los recibidos en la petición. *Para borrar uno de ellos, hay que asignarle el valor `null`*. \nEn este servicio, el único identificador aceptado es el ***cuc*** de la cuenta del cliente en el Registro Único.<br>\n \n **Restricciones en datos personales:** \n - El dato \"**fecha de nacimiento**\" no podrá representar una fecha anterior al 31-12-1899.\n \n <br>**Restricciones en campos de dirección:**<br><br>\nEste servicio **NO** permite la modificación del campo \"*ine*\" en la libreta de direcciones, es un campo sólo modificable por *MDM*. Se acepta en el payload, pero es eliminado por el servicio si se modifica uno de los siguientes campos de la dirección:\n  * additional_info\n  * building\n  * company\n  * address_country\n  * door\n  * km\n  * floor\n  * address_locality.name\n  * address_locality.identifier\n  * address_municipality.name\n  * address_municipality.identifier\n  * post_office_box_number\n  * postal_code\n  * address_region.name\n  * address_region.identifier\n  * stairs\n  * street_code\n  * residential_complex\n  * street_address\n  * street_number\n  * street_type\n  * has_street_number\n\nEl campo \"**postal_code**\" debe comenzar con el mismo código que se encuentra en el campo \"**address_region.identifier**\" o, en su defecto, con el código de provincia inferido del campo \"**address_region.name**\". De no ser así se devolverá un error de la petición.\n"
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/param_identifier'
+       -
+        $ref: '#/components/parameters/if_match'
+      requestBody:
+        $ref: '#/components/requestBodies/body_put_customer'
+      responses:
+        "200":
+          description: OK. Se devuelve el recurso tras efectuar la actualización.
+          headers:
+            ETag:
+              description: Cabecera HTTP donde se debe indica el valor ETag del recurso. Se usa para garantizar el control de concurrencia optimista.
+              style: simple
+              explode: false
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer'
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-codegen-request-body-name: customer
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+    delete:
+      tags:
+       - customer
+      summary: Elimina físicamente la información de un cliente
+      description: "Permite eliminar físicamente modificar los datos personales  asociados a un cliente incluidos los datos referentes a puntos de contacto, suscripciones y colectivos. Así mismo, se elimina toda la información relativa a los cucs relacionados (CucSetInfo) \n"
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/eci_customer_fusion'
+       -
+        $ref: '#/components/parameters/if_match'
+       -
+        $ref: '#/components/parameters/param_identifier'
+      responses:
+        "200":
+          description: "OK, se ha eliminado correctamente la información del cliente"
+          content: {}
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "451":
+          description: ""
+          $ref: '#/components/responses/451'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+    patch:
+      tags:
+       - customer
+      summary: Reemplazo de la parte indicada de los datos de un cliente.
+      description: "Permite modificar los datos personales de un cliente excepto los datos referentes a puntos de contacto, que deberán ser modificados usando para ello los servicios que operan sobre puntos de contacto de un cliente. Modifica parcialmente la información del cliente sustituyendo sus atributos por los recibidos en la petición. *Para borrar uno de ellos, hay que asignarle el valor `null`*\nEn este servicio, el único identificador aceptado es el ***cuc*** de la cuenta del cliente en el Registro Único.\n \n \n **Restricciones en datos personales:** \n - El dato \"**fecha de nacimiento**\" no podrá representar una fecha anterior al 31-12-1899.\n \n "
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/if_match'
+       -
+        $ref: '#/components/parameters/param_identifier'
+      requestBody:
+        description: Información personal del cliente que en el Registro tiene que sustituir a la existente.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/customer_rq'
+        required: true
+      responses:
+        "200":
+          description: "OK, se ha localizado la cuenta con el identificador recibido, en el cuerpo de la respuesta se devuelve la información solicitada."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer'
+        "203":
+          description: "OK, se ha localizado la cuenta con el identificador recibido y en el cuerpo de la respuesta se devuelve la información solicitada, pero la información del cliente en Registro Único está asociada a un **cuc** diferente debido a una fusión de cuentas. Es conveniente actualizar la información."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer'
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "451":
+          description: ""
+          $ref: '#/components/responses/451'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-codegen-request-body-name: customer
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+  /customers/{identifier}/identifiers:
+    get:
+      tags:
+       - customer
+      summary: Devuelve los identificadores de cliente asociados al mismo en el CucSetInfo.
+      description: Servicio que devuelve la estructura 'CucSetInfo' de un customer
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/param_identifier'
+      responses:
+        "200":
+          description: OK. Se devuelve el recurso pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer_info_cuc_set'
+        "203":
+          description: "OK. Se devuelve el recurso pedido, pero la información del cliente en Registro Único está asociada a un **identifier** diferente debido a una fusión de cuentas."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/customer_info_cuc_set'
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+    post:
+      tags:
+       - customer
+      summary: Añade a un cliente un identificador de cliente al CucSetInfo.
+      description: Servicio que añade nuevos elementos a la estructura 'CucSetInfo' de un customer
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/eci_customer_fusion'
+       -
+        $ref: '#/components/parameters/param_identifier'
+      requestBody:
+        $ref: '#/components/requestBodies/body_post_cuc_set_info'
+      responses:
+        "201":
+          description: OK. CucSetInfo creado
+          content: {}
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-codegen-request-body-name: body_post_cuc_set_info
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+  /customers/search-creations:
+    post:
+      tags:
+       - customer
+      summary: Recuperar los movimientos de auditoría que se corresponden únicamente a altas de clientes.
+      description: "Servicio que recupera los movimientos de auditoría que se corresponden únicamente a altas de clientes.\n\n- El parámetro 'source_excluded' permite recuperar registros de altas excluyendo aquellos que hayan sido realizados por ciertos sources.\nMediante el parámetro 'source_included' Es posible recuperar registros de altas incluyendo aquellos que hayan sido realizados por ciertos sources. \n- El parámetro 'source_included' permite recuperar registros de altas que hayan sido realizados por ciertos sources.\n- Estos parámetros son opcionales y a la vez excluyentes, es decir, en caso de usarse solo puede aparecer uno de ellos\n\nEn el listado de movimientos de altas aparecerá el último estado del cliente, lo que facilita que los consumidores tengan la 'foto' actual del cliente lo antes posible.\nPuede darse el caso de que el cliente haya sido eliminado, en tal caso este registro de auditoría no se devuelve."
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/_id'
+       -
+        $ref: '#/components/parameters/source_excluded'
+       -
+        $ref: '#/components/parameters/source_included'
+       -
+        $ref: '#/components/parameters/limit'
+      responses:
+        "200":
+          description: OK. Se devuelve el recurso pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/replicate_response'
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+  /customers/search-deletions:
+    post:
+      tags:
+       - customer
+      summary: Recuperar los movimientos de auditoría que se corresponden únicamente a bajas de clientes.
+      description: "Servicio que recupera los movimientos de auditoría que se corresponden únicamente a bajas de clientes..\n\n- El parámetro 'source_excluded' permite recuperar registros de bajas excluyendo aquellos que hayan sido realizados por ciertos sources. \n- El parámetro 'source_included' permite recuperar registros de bajas que hayan sido realizados por ciertos sources.\n- Estos parámetros son opcionales y a la vez excluyentes, es decir, en caso de usarse solo puede aparecer uno de ellos.\n\n."
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/_id'
+       -
+        $ref: '#/components/parameters/source_excluded'
+       -
+        $ref: '#/components/parameters/source_included'
+       -
+        $ref: '#/components/parameters/limit'
+      responses:
+        "200":
+          description: OK. Se devuelve el recurso pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/replicate_response'
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+  /customers/{identifier}/contact-points/mark-review:
+    post:
+      tags:
+       - customer
+      summary: Establece los puntos de contacto como revisados
+      description: Servicio que marca sobre el customer la revisión de los puntos de contacto. Establece el campo lastReviewContactPoint al día en el que se realiza la petición.
+      parameters:
+       -
+        $ref: '#/components/parameters/x_client'
+       -
+        $ref: '#/components/parameters/param_identifier'
+      responses:
+        "204":
+          description: "OK, se ha marcado al cliente como revisado"
+        "400":
+          description: ""
+          $ref: '#/components/responses/400'
+        "404":
+          description: ""
+          $ref: '#/components/responses/404'
+        "500":
+          description: ""
+          $ref: '#/components/responses/500'
+      security:
+       -
+        default: []
+      x-auth-type: Application & Application User
+      x-wso2-application-security:
+        security-types:
+         - oauth2
+        optional: false
+components:
+  schemas:
+    customer:
+      type: object
+      properties:
+        identifier:
+          maxLength: 10
+          minLength: 10
+          pattern: "^\\d{10}$"
+          type: string
+          description: Código de la cuenta del Cliente en el Registro Único.
+          readOnly: true
+        given_name:
+          maxLength: 40
+          minLength: 1
+          type: string
+          description: Nombre del cliente
+        family_name:
+          maxLength: 40
+          minLength: 1
+          type: string
+          description: Primer apellido del cliente
+        second_family_name:
+          maxLength: 40
+          minLength: 1
+          type: string
+          description: Segundo apellido del cliente
+        legal_name:
+          minLength: 1
+          type: string
+          description: "Id de la entidad referenciada. Razón social, nombre legal de la persona jurídica."
+        commercial_name:
+          minLength: 1
+          type: string
+          description: Id de la entidad referenciada. Campo con el nombre comercial de la empresa.
+        type:
+          type: string
+          description: Campo que nos indicará si es una persona física o jurídica.
+          enum:
+           - NATURAL
+           - LEGAL
+        gender:
+          type: string
+          description: Género del cliente.
+          enum:
+           - MALE
+           - FEMALE
+        user:
+          required:
+           - username
+          type: object
+          properties:
+            username:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: Nickname
+        id_document:
+          $ref: '#/components/schemas/id_document'
+        birth_date:
+          type: string
+          description: Fecha de nacimiento del cliente en el formato extendido de fecha y hora UTC
+          format: date-time
+        nationality:
+          $ref: '#/components/schemas/country'
+        knows_language:
+          $ref: '#/components/schemas/knows_language'
+        tagus:
+          uniqueItems: true
+          type: array
+          description: Array de token tagus
+          items:
+            maxLength: 120
+            minLength: 1
+            pattern: "^[0-9a-zA-Z]+$"
+            type: string
+        addresses:
+          uniqueItems: true
+          type: array
+          description: Array de direcciones
+          items:
+            $ref: '#/components/schemas/address'
+        telephones:
+          uniqueItems: true
+          type: array
+          description: Array de teléfonos
+          items:
+            $ref: '#/components/schemas/telephone'
+        emails:
+          uniqueItems: true
+          type: array
+          description: Array de emails
+          items:
+            $ref: '#/components/schemas/email'
+        business_line:
+          type: object
+          properties:
+            identifier:
+              maxLength: 7
+              minLength: 7
+              type: string
+          description: Línea de negocio
+        contact_validation_response:
+          type: string
+          description: Respuesta de la validación de contacto
+          enum:
+           - DONE
+           - LATER
+           - NEVER
+           - CANCEL
+        contact_validation_status:
+          type: string
+          description: Estado de la validación de contacto
+          enum:
+           - PENDING
+           - IN_PROCESS
+           - REVIEW
+           - DONE
+        record_type:
+          type: string
+          description: Tipo de customer
+          enum:
+           - CUSTOMER
+           - PROSPECT
+        status:
+          type: string
+          description: Estado de cliente
+        dvd_rating:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: Rating de la división de venta a distancia
+        is_loyalty:
+          type: boolean
+          description: Indica si el cliente es de tipo 'loyalty'
+        date_modified:
+          type: string
+          description: Fecha de ultima modificación del cliente
+          format: date-time
+        date_created:
+          type: string
+          description: Fecha de creación del cliente
+          format: date-time
+        registration_campaign:
+          minLength: 1
+          type: string
+          description: Campaña en la que se registró el cliente
+        sat_id:
+          maxLength: 12
+          minLength: 12
+          type: string
+          description: Identificador del cliente en SAT
+        uatg:
+          maxLength: 50
+          minLength: 1
+          type: string
+          description: Identificador del cliente en K06
+      description: Representación de un cliente
+    post_customer:
+      type: object
+      properties:
+        identifier:
+          maxLength: 10
+          minLength: 10
+          pattern: "^\\d{10}$"
+          type: string
+          description: Código de la cuenta del Cliente en el Registro Único.
+          readOnly: true
+        given_name:
+          maxLength: 40
+          minLength: 1
+          type: string
+          description: Nombre del cliente
+        family_name:
+          maxLength: 40
+          minLength: 1
+          type: string
+          description: Primer apellido del cliente
+        second_family_name:
+          maxLength: 40
+          minLength: 1
+          type: string
+          description: Segundo apellido del cliente
+        legal_name:
+          minLength: 1
+          type: string
+          description: "Id de la entidad referenciada. Razón social, nombre legal de la persona jurídica."
+        commercial_name:
+          minLength: 1
+          type: string
+          description: Id de la entidad referenciada. Campo con el nombre comercial de la empresa.
+        type:
+          type: string
+          description: Campo que nos indicará si es una persona física o jurídica.
+          enum:
+           - NATURAL
+           - LEGAL
+        gender:
+          type: string
+          description: Género del cliente.
+          enum:
+           - MALE
+           - FEMALE
+        user:
+          required:
+           - username
+          type: object
+          properties:
+            username:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: Nickname
+        id_document:
+          $ref: '#/components/schemas/id_document'
+        birth_date:
+          type: string
+          description: Fecha de nacimiento del cliente en el formato extendido de fecha y hora UTC
+          format: date-time
+        nationality:
+          $ref: '#/components/schemas/country'
+        knows_language:
+          $ref: '#/components/schemas/knows_language'
+        tagus:
+          uniqueItems: true
+          type: array
+          description: Array de token tagus
+          items:
+            maxLength: 120
+            minLength: 1
+            pattern: "^[0-9a-zA-Z]+$"
+            type: string
+        addresses:
+          uniqueItems: true
+          type: array
+          description: Array de direcciones
+          items:
+            $ref: '#/components/schemas/post_address'
+        telephones:
+          uniqueItems: true
+          type: array
+          description: Array de teléfonos
+          items:
+            $ref: '#/components/schemas/post_telephone'
+        emails:
+          uniqueItems: true
+          type: array
+          description: Array de emails
+          items:
+            $ref: '#/components/schemas/email'
+        business_line:
+          type: object
+          properties:
+            identifier:
+              maxLength: 7
+              minLength: 7
+              type: string
+          description: Línea de negocio
+        contact_validation_response:
+          type: string
+          description: Respuesta de la validación de contacto
+          enum:
+           - DONE
+           - LATER
+           - NEVER
+           - CANCEL
+        contact_validation_status:
+          type: string
+          description: Estado de la validación de contacto
+          enum:
+           - PENDING
+           - IN_PROCESS
+           - REVIEW
+           - DONE
+        dvd_rating:
+          maxLength: 3
+          minLength: 3
+          type: string
+          description: Rating de la división de venta a distancia
+        is_loyalty:
+          type: boolean
+          description: Indica si el cliente es de tipo 'loyalty'
+        date_modified:
+          type: string
+          description: Fecha de ultima modificación del cliente
+          format: date-time
+        date_created:
+          type: string
+          description: Fecha de creación del cliente
+          format: date-time
+        registration_campaign:
+          minLength: 1
+          type: string
+          description: Campaña en la que se registró el cliente
+        sat_id:
+          maxLength: 12
+          minLength: 12
+          type: string
+          description: Identificador del cliente en SAT
+        uatg:
+          maxLength: 50
+          minLength: 1
+          type: string
+          description: Identificador del cliente en KO6
+      description: Datos de un cliente para el POST
+    collective:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Código de colectivo
+        start_date:
+          type: string
+          description: Fecha de inicio del collectivo
+          format: date-time
+        level:
+          type: string
+          description: Nivel del colectivo
+      description: Colectivo
+    post_address:
+      type: object
+      properties:
+        alternate_name:
+          maxLength: 512
+          type: string
+          description: Alias de la dirección del cliente.
+        description:
+          maxLength: 150
+          type: string
+          description: Descripcion de la dirección del cliente.
+        address_country:
+          $ref: '#/components/schemas/address_country'
+        address_region:
+          type: object
+          properties:
+            name:
+              maxLength: 512
+              minLength: 1
+              type: string
+              description: "Nombre de la Provincia, o su equivalente en cada país, a la que pertenece la dirección."
+            identifier:
+              maxLength: 3
+              minLength: 1
+              type: string
+              description: Código asignado por el INE o su equivalente en cada país a la provincia a la que pertenece la dirección.
+          description: Provincia a la que pertenece la dirección.
+        address_municipality:
+          type: object
+          properties:
+            name:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: "Nombre del municipio, o su equivalente en cada país, a la que pertenece la dirección. Es opcional, pero si no se indica es obligatorio el nombre de la localidad."
+            identifier:
+              maxLength: 32
+              minLength: 1
+              type: string
+              description: "Nombre del municipio, o su equivalente en cada país, a la que pertenece la dirección. Es opcional, pero si no se indica es obligatorio el nombre de la localidad."
+          description: Municipio al que pertenece la dirección.
+        address_locality:
+          type: object
+          properties:
+            name:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: "Nombre de la localidad dentro del municipio, o su equivalente en cada país, a la que pertenece la dirección. Es opcional, pero si no se indica es obligatorio el nombre del municipio"
+            identifier:
+              maxLength: 32
+              minLength: 1
+              type: string
+              description: "Código asignado por el INE, o su equivalente en cada país, a la localizada a la que pertenece la dirección. Es opcional, pero si existe, también tiene que estar relleno el nombre de la localidad"
+          description: Localidad a la que pertenece la dirección.
+        postal_code:
+          maxLength: 15
+          type: string
+          description: Código postal de la dirección. Tiene que ser formalmente válido en el país de la dirección
+        status:
+          type: string
+          description: Indica el estado de una dirección
+          enum:
+           - ACTIVE
+           - HARDBOUNCE
+        is_verified:
+          type: boolean
+          description: Indica si una dirección está validada
+        date_verified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo validated
+          readOnly: true
+        status_date_modified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo status
+          readOnly: true
+        street_type:
+          maxLength: 512
+          type: string
+          description: "Código del tipo de vía de la dirección. Actualmente no se está comprobando su validez, aunque se recomienda utilizar los definidos por el INE o su equivalente en cada país"
+        street_address:
+          maxLength: 60
+          type: string
+          description: Nombre de la vía.
+        street_number:
+          maxLength: 5
+          type: string
+          description: "Número de la vía. Si no se indica nada, se considera que la dirección es Sin Número o 'S/N'"
+        km:
+          maxLength: 512
+          type: string
+          description: Punto kilometrico
+        street_code:
+          maxLength: 512
+          type: string
+          description: Código de normalización de la dirección
+        residential_complex:
+          maxLength: 40
+          type: string
+          description: Urbanización
+        building:
+          maxLength: 5
+          type: string
+          description: Bloque
+        stairs:
+          maxLength: 20
+          type: string
+          description: Escalera
+        floor:
+          maxLength: 10
+          type: string
+          description: Piso
+        door:
+          maxLength: 10
+          type: string
+          description: puerta
+        has_street_number:
+          type: boolean
+          description: Indica si la direccion tiene número
+        additional_info:
+          maxLength: 50
+          type: string
+          description: Resto de la dirección no normalizada
+        post_office_box_number:
+          maxLength: 10
+          type: string
+          description: Apartado de correos de la dirección
+        contact:
+          $ref: '#/components/schemas/contact'
+        company:
+          maxLength: 30
+          type: string
+          description: Compañia
+        capture_point:
+          maxLength: 512
+          type: string
+          description: Id origen
+        is_accept_advertising:
+          type: boolean
+          description: "Indicador de si el cliente acepta la recepción de publicidad en el punto de contacto. Es un valor opcional; de forma que si no se indica, o no está relleno, por defecto se considera false, *el cliente no acepta publicidad en el punto de contacto asociado*"
+        tags:
+          type: array
+          description: Array de tags
+          items:
+            type: string
+      description: Datos de una dirección de un cliente para el POST
+    address:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Identificador único de la dirección
+          format: uuid
+        alternate_name:
+          maxLength: 512
+          type: string
+          description: Alias de la dirección del cliente.
+        description:
+          maxLength: 150
+          type: string
+          description: Descripción de la dirección del cliente.
+        address_country:
+          $ref: '#/components/schemas/address_country'
+        address_region:
+          type: object
+          properties:
+            name:
+              maxLength: 512
+              type: string
+              description: "Nombre de la Provincia, o su equivalente en cada país, a la que pertenece la dirección."
+            identifier:
+              maxLength: 3
+              type: string
+              description: Código asignado por el INE o su equivalente en cada país a la provincia a la que pertenece la dirección.
+          description: Provincia a la que pertenece la dirección.
+        address_municipality:
+          type: object
+          properties:
+            name:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: "Nombre del municipio, o su equivalente en cada país, a la que pertenece la dirección. Es opcional, pero si no se indica es obligatorio el nombre de la localidad."
+            identifier:
+              maxLength: 32
+              minLength: 1
+              type: string
+              description: "Nombre del municipio, o su equivalente en cada país, a la que pertenece la dirección. Es opcional, pero si no se indica es obligatorio el nombre de la localidad."
+          description: Municipio al que pertenece la dirección.
+        address_locality:
+          type: object
+          properties:
+            name:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: "Nombre de la localidad dentro del municipio, o su equivalente en cada país, a la que pertenece la dirección. Es opcional, pero si no se indica es obligatorio el nombre del municipio"
+            identifier:
+              maxLength: 32
+              minLength: 1
+              type: string
+              description: "Código asignado por el INE, o su equivalente en cada país, a la localizada a la que pertenece la dirección. Es opcional, pero si existe, también tiene que estar relleno el nombre de la localidad"
+          description: Localidad a la que pertenece la dirección.
+        postal_code:
+          maxLength: 15
+          type: string
+          description: Código postal de la dirección. Tiene que ser formalmente válido en el país de la dirección
+        status:
+          type: string
+          description: Indica el estado de una dirección
+          enum:
+           - ACTIVE
+           - HARDBOUNCE
+        is_verified:
+          type: boolean
+          description: Indica si una dirección está validada
+        date_verified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo validated
+          readOnly: true
+        status_date_modified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo status
+          readOnly: true
+        date_modified:
+          type: string
+          description: Ultima fecha en la que se modificó la dirección
+          readOnly: true
+        street_type:
+          maxLength: 512
+          type: string
+          description: "Código del tipo de vía de la dirección. Actualmente no se está comprobando su validez, aunque se recomienda utilizar los definidos por el INE o su equivalente en cada país"
+        street_address:
+          maxLength: 60
+          type: string
+          description: Nombre de la vía.
+        street_number:
+          maxLength: 5
+          type: string
+          description: "Número de la vía. Si no se indica nada, se considera que la dirección es Sin Número o 'S/N'"
+        km:
+          maxLength: 512
+          type: string
+          description: Punto kilometrico
+        street_code:
+          maxLength: 512
+          type: string
+          description: Código de normalización de la dirección
+        residential_complex:
+          maxLength: 40
+          type: string
+          description: Urbanización
+        building:
+          maxLength: 5
+          type: string
+          description: Bloque
+        stairs:
+          maxLength: 20
+          type: string
+          description: Escalera
+        floor:
+          maxLength: 10
+          type: string
+          description: Piso
+        door:
+          maxLength: 10
+          type: string
+          description: puerta
+        has_street_number:
+          type: boolean
+          description: Indica si la dirección tiene número
+        additional_info:
+          maxLength: 50
+          type: string
+          description: Resto de la dirección no normalizada
+        post_office_box_number:
+          maxLength: 10
+          type: string
+          description: Apartado de correos de la dirección.
+        contact:
+          $ref: '#/components/schemas/contact'
+        company:
+          maxLength: 30
+          type: string
+          description: Compañia
+        capture_point:
+          maxLength: 512
+          type: string
+          description: Id origen
+        ine:
+          maxLength: 512
+          minLength: 1
+          type: string
+          description: Codigo INE
+        is_accept_advertising:
+          type: boolean
+          description: "Indicador de si el cliente acepta la recepción de publicidad en el punto de contacto. Es un valor opcional; de forma que si no se indica, o no está relleno, por defecto se considera false, *el cliente no acepta publicidad en el punto de contacto asociado*"
+        tags:
+          type: array
+          description: Array de tags
+          items:
+            type: string
+      description: Representación de la dirección de un cliente
+    post_telephone:
+      type: object
+      properties:
+        number:
+          maxLength: 30
+          minLength: 1
+          pattern: "^[0-9]{1,}$"
+          type: string
+          description: Número de teléfono.
+        country_prefix:
+          maxLength: 5
+          minLength: 2
+          pattern: "\\+[0-9]{1,4}"
+          type: string
+          description: Prefijo de la UiT asignado al país donde se ha dado de alta el teléfono
+        type:
+          type: string
+          description: Tipo del punto de contacto.
+          enum:
+           - CELL_PHONE
+           - LANDLINE_PHONE
+        tags:
+          type: array
+          description: Array de tags
+          items:
+            type: string
+        is_verified:
+          type: boolean
+          description: Indicador de que se ha comprobado explícitamente que el teléfono pertenece al cliente.
+          default: false
+        status:
+          type: string
+          description: Indica el estado de un teléfono
+          enum:
+           - ACTIVE
+           - HARDBOUNCE
+        date_verified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo is_verified
+          readOnly: true
+        status_date_modified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo status
+          readOnly: true
+        is_accept_advertising:
+          type: boolean
+          description: "Indicador de si el cliente acepta la recepción de publicidad en el punto de contacto. Es un valor opcional; de forma que si no se indica, o no está relleno, por defecto se considera false, *el cliente no acepta publicidad en el punto de contacto asociado*"
+      description: Representación del teléfono de un cliente
+    telephone:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Identificador único del teléfono
+          format: uuid
+        number:
+          maxLength: 30
+          minLength: 1
+          pattern: "^[0-9]{1,}$"
+          type: string
+          description: Número de teléfono.
+        country_prefix:
+          maxLength: 5
+          minLength: 2
+          pattern: "\\+[0-9]{1,4}"
+          type: string
+          description: Prefijo de la UiT asignado al país donde se ha dado de alta el teléfono
+        type:
+          type: string
+          description: Tipo del punto de contacto.
+          enum:
+           - CELL_PHONE
+           - LANDLINE_PHONE
+        tags:
+          type: array
+          description: Array de tags
+          items:
+            type: string
+        is_verified:
+          type: boolean
+          description: Indicador de que se ha comprobado explícitamente que el teléfono pertenece al cliente.
+          default: false
+        status:
+          type: string
+          description: Indica el estado de un teléfono
+          enum:
+           - ACTIVE
+           - HARDBOUNCE
+        date_verified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo is_verified
+          readOnly: true
+        status_date_modified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo status
+          readOnly: true
+        is_accept_advertising:
+          type: boolean
+          description: "Indicador de si el cliente acepta la recepción de publicidad en el punto de contacto. Es un valor opcional; de forma que si no se indica, o no está relleno, por defecto se considera false, *el cliente no acepta publicidad en el punto de contacto asociado*"
+      description: Representación del teléfono de un cliente
+    email:
+      type: object
+      properties:
+        email_address:
+          maxLength: 320
+          minLength: 5
+          pattern: "^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(\\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$"
+          type: string
+          description: Email del cliente
+        tags:
+          type: array
+          description: Array de tags
+          items:
+            type: string
+        is_accept_advertising:
+          type: boolean
+          description: "Indicador de si el cliente acepta la recepción de publicidad en el punto de contacto. Es un valor opcional; de forma que si no se indica, o no está relleno, por defecto se considera false, *el cliente no acepta publicidad en el punto de contacto asociado*"
+        is_verified:
+          type: boolean
+          description: Indicador de que se ha comprobado explícitamente que el email pertenece al cliente.
+          readOnly: true
+          default: false
+        status:
+          type: string
+          description: Indica el estado de un email
+          readOnly: true
+          enum:
+           - ACTIVE
+           - HARDBOUNCE
+        date_verified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo is_verified
+          readOnly: true
+        status_date_modified:
+          type: string
+          description: Ultima fecha en la que se modificó el campo status
+          readOnly: true
+      description: Representación del email de un cliente
+    eci_card:
+      type: object
+      properties:
+        number:
+          maxLength: 19
+          minLength: 19
+          type: string
+          description: Número de la tarjeta
+        type:
+          type: string
+          description: Indica el tipo de tarjeta.
+          enum:
+           - TECI
+           - CLOSE
+        is_loyalty:
+          type: boolean
+          description: Indica si la tarjeta es de tipo 'loyalty'
+        is_verified:
+          type: boolean
+          description: Indica si la tarjeta está validada
+        date_modified:
+          type: string
+          description: Fecha de última modificación por SAT
+          format: date-time
+        date_created:
+          type: string
+          description: Fecha de creación de la tarjeta
+          format: date-time
+        contract_type:
+          type: string
+          description: Indica el tipo de tarjeta. Si es Titular o Autorizado.
+          enum:
+           - TI
+           - AU
+      description: Representación de una tarjeta ECI de un cliente
+    id_document:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Tipo del documento que ha registrado el cliente.
+          enum:
+           - DNI
+           - BI
+           - PASSPORT
+           - CIF
+           - NIE
+           - RESIDENTIAL_CARD
+           - OTHERS
+        number:
+          maxLength: 512
+          type: string
+          description: Número del documento que ha registrado el cliente.
+        is_verified:
+          type: boolean
+          description: Indicador de que se ha comprobado explícitamente que el documento pertenece al cliente.
+      description: Documento ajeno al Grupo El Corte Inglés con el que el cliente se ha registrado.
+    country:
+      type: string
+      description: Código ISO del país
+    knows_language:
+      type: string
+      description: Código ISO del idioma o 'locale'
+    address_country:
+      type: object
+      properties:
+        identifier:
+          $ref: '#/components/schemas/country'
+      description: Código ISO del país
+    contact:
+      type: object
+      properties:
+        person:
+          type: object
+          properties:
+            given_name:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: Nombre del cliente
+            family_name:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: Primer apellido del cliente
+            second_family_name:
+              maxLength: 40
+              minLength: 1
+              type: string
+              description: Segundo apellido del cliente
+          description: Persona de contacto
+        telephone:
+          maxItems: 2
+          minItems: 0
+          type: array
+          description: Teléfonos de contacto
+          items:
+            $ref: '#/components/schemas/contact_phone'
+        notes:
+          maxLength: 512
+          type: string
+          description: Observaciones
+      description: Datos de contacto en el envio
+    contact_phone:
+      type: object
+      properties:
+        number:
+          type: string
+          description: Número de teléfono
+          format: phone_number
+        type:
+          type: string
+          description: Tipo del punto de contacto.
+          enum:
+           - CELL_PHONE
+           - LANDLINE_PHONE
+      description: Telefono de contacto en el envio
+    subscription:
+      required:
+       - service
+      type: object
+      properties:
+        communication_channel:
+          type: string
+          description: Canal de comunicación
+          enum:
+           - PHONE_CALLS
+           - SMS_MMS
+           - POSTAL_ADDRESS
+           - EMAIL
+           - TPV
+        communication_frequency:
+          type: string
+          description: Frecuencia de comunicación
+        end_date:
+          type: string
+          description: Fecha de fin de la suscripción
+          format: date-time
+        start_date:
+          type: string
+          description: Fecha de inicio de la suscripción
+          format: date-time
+        name:
+          type: string
+          description: Nombre de la suscripción
+        capture_point:
+          type: string
+          description: Origen de la suscripción
+        service:
+          required:
+           - identifier
+          type: object
+          properties:
+            identifier:
+              maxLength: 8
+              minLength: 8
+              type: string
+              description: Código del servicio
+        status:
+          type: string
+          description: Estado de la suscripción
+          enum:
+           - ACTIVE
+           - INACTIVE
+      description: Subscripción de un cliente.
+    customer_info_cuc_set:
+      type: object
+      properties:
+        identifiers:
+          uniqueItems: true
+          type: array
+          description: Array de identificadores del cliente
+          items:
+            $ref: '#/components/schemas/identifier'
+      description: Representación de los 'CUCs' de un cliente
+    identifier:
+      type: object
+      properties:
+        identifier:
+          maxLength: 10
+          minLength: 10
+          pattern: "^\\d{10}$"
+          type: string
+          description: Código de la cuenta del Cliente en el Registro Único.
+        origin:
+          type: string
+          description: Sistema que provocó el proceso de fusión.
+        type:
+          type: string
+          description: Tipo de registro dentro del proceso de fusión.
+          enum:
+           - PRIMARY
+           - SECONDARY
+        date:
+          type: string
+          description: Fecha en la que el registro fue fusionado.
+          format: date-time
+      description: Representación de un 'CUC' de un cliente
+    post_cuc_set_info:
+      type: object
+      properties:
+        identifier:
+          maxLength: 10
+          minLength: 10
+          pattern: "^\\d{10}$"
+          type: string
+          description: Código de la cuenta del Cliente en el Registro Único.
+        origin:
+          type: string
+          description: Sistema que provocó el proceso de fusión.
+        date:
+          type: string
+          description: Fecha en la que el registro fue fusionado.
+          format: date-time
+      description: Datos de un 'CUC' de un cliente para el POST
+    post_customers_search:
+      type: object
+      properties:
+        or_operator_search:
+          type: object
+          properties:
+            value:
+              maxLength: 40
+              minLength: 1
+              type: string
+            list:
+              type: array
+              items:
+                type: string
+                enum:
+                 - eci_card
+                 - id_document
+                 - identifier
+                 - email
+        customer:
+          type: object
+          properties:
+            identifier:
+              maxLength: 10
+              minLength: 10
+              pattern: "^\\d{10}$"
+              type: string
+            given_name:
+              maxLength: 40
+              minLength: 1
+              type: string
+            family_name:
+              maxLength: 40
+              minLength: 1
+              type: string
+            second_family_name:
+              maxLength: 40
+              minLength: 1
+              type: string
+            id_document:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum:
+                   - DNI
+                   - BI
+                   - PASSPORT
+                   - CIF
+                   - NIE
+                   - RESIDENTIAL_CARD
+                   - OTHERS
+                number:
+                  minLength: 1
+                  type: string
+                is_verified:
+                  type: boolean
+            eci_card:
+              required:
+               - number
+              type: object
+              properties:
+                number:
+                  pattern: "^600833(\\d{13}|\\d{11})$"
+                  type: string
+            pairwise:
+              maxLength: 13
+              minLength: 13
+              type: string
+            sat_id:
+              maxLength: 12
+              minLength: 12
+              type: string
+            uatg:
+              maxLength: 50
+              minLength: 1
+              type: string
+            email:
+              required:
+               - email_address
+              type: object
+              properties:
+                email_address:
+                  maxLength: 320
+                  minLength: 5
+                  pattern: "^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(\\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\\.)+[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$"
+                  type: string
+            telephone:
+              required:
+               - number
+              type: object
+              properties:
+                number:
+                  maxLength: 30
+                  minLength: 1
+                  pattern: "^[0-9]+$"
+                  type: string
+        expand:
+          type: array
+          items:
+            type: string
+            enum:
+             - address
+             - telephone
+             - email
+             - payment
+             - tag
+             - collective
+             - promotion
+             - subscription
+             - eci_card
+             - order_preferences
+             - identifier_list
+             - consent
+        include:
+          type: array
+          items:
+            type: string
+            enum:
+             - address.tag
+             - telephone.tag
+             - email.tag
+             - payment.tag
+        current_page:
+          minimum: 0
+          type: integer
+        page_size:
+          maximum: 10
+          minimum: 1
+          type: integer
+      description: Criterios de búsqueda de customers
+    customer_pagination_object:
+      type: object
+      properties:
+        pagination_object:
+          $ref: '#/components/schemas/pagination_object'
+        business_object:
+          type: array
+          items:
+            $ref: '#/components/schemas/customer_with_extended_tags'
+      description: Resultado de la búsqueda de clientes
+    pagination_object:
+      type: object
+      properties:
+        current_page:
+          minimum: 0
+          type: integer
+          description: Página actual. La primera página es el 0.
+        page_size:
+          minimum: 1
+          type: integer
+          description: Número de elementos mostrados por página.
+        total_pages:
+          minimum: 0
+          type: integer
+          description: "Número total de páginas, se regulará según el total_elements y el page_size"
+        page_elements:
+          minimum: 0
+          type: integer
+          description: Número de elementos que se exponen en la página actual
+        total_elements:
+          minimum: 0
+          type: integer
+          description: Número de elementos encontrados
+        is_last_page:
+          type: boolean
+          description: Valor que determina si es la última página o no
+    customer_with_extended_tags:
+      description: Representación de un cliente con sus datos expandidos
+      allOf:
+       -
+        $ref: '#/components/schemas/customer'
+       -
+        type: object
+        properties:
+          customer_record_type:
+            type: string
+            description: Indica el tipo de customer
+            enum:
+             - HARD
+             - SOFT
+          pairwise:
+            maxLength: 13
+            minLength: 13
+            type: string
+          tags:
+            uniqueItems: true
+            type: array
+            description: Array de tags
+            items:
+              $ref: '#/components/schemas/extended_tag'
+          collectives:
+            uniqueItems: true
+            type: array
+            description: Array de colectivos
+            items:
+              $ref: '#/components/schemas/collective'
+          promotions:
+            uniqueItems: true
+            type: array
+            description: Array de Planes de Marketing
+            items:
+              $ref: '#/components/schemas/promotion'
+          payment_cards:
+            uniqueItems: true
+            type: array
+            description: Array de métodos de pago
+            items:
+              $ref: '#/components/schemas/payment_card'
+          eci_cards:
+            uniqueItems: true
+            type: array
+            description: Array de tarjetas ECI
+            items:
+              $ref: '#/components/schemas/eci_card'
+          subscriptions:
+            uniqueItems: true
+            type: array
+            description: Array de suscripciones
+            items:
+              $ref: '#/components/schemas/subscription'
+          order_preferences:
+            uniqueItems: true
+            type: array
+            description: Array de preferencias
+            items:
+              $ref: '#/components/schemas/order_preferences'
+          consents:
+            uniqueItems: true
+            type: array
+            description: Array de consentimientos
+            items:
+              $ref: '#/components/schemas/consent'
+          identifiers:
+            uniqueItems: true
+            type: array
+            description: Array de consentimientos
+            items:
+              $ref: '#/components/schemas/identifier'
+    customer_rq:
+      description: Representación de un cliente
+      allOf:
+       -
+        type: object
+        properties:
+          given_name:
+            maxLength: 40
+            type: string
+            description: Nombre del cliente
+          family_name:
+            maxLength: 40
+            type: string
+            description: Primer apellido del cliente
+          second_family_name:
+            maxLength: 40
+            type: string
+            description: Segundo apellido del cliente
+          gender:
+            type: string
+            description: Género del cliente.
+            enum:
+             - MALE
+             - FEMALE
+          user:
+            required:
+             - username
+            type: object
+            properties:
+              username:
+                maxLength: 40
+                minLength: 1
+                type: string
+                description: Nickname
+          id_document:
+            type: object
+            properties:
+              type:
+                type: string
+                description: Tipo del documento que ha registrado el cliente.
+                enum:
+                 - DNI
+                 - BI
+                 - PASSPORT
+                 - CIF
+                 - NIE
+                 - RESIDENTIAL_CARD
+                 - OTHERS
+              number:
+                type: string
+                description: Número del documento que ha registrado el cliente.
+              is_verified:
+                type: boolean
+                description: Indicador de que se ha comprobado explícitamente que el documento pertenece al cliente.
+                default: false
+            description: Documento ajeno al Grupo El Corte Inglés con el que el cliente se ha registrado.
+          birth_date:
+            type: string
+            description: Fecha de nacimiento del cliente en el formato extendido de fecha y hora UTC.
+            format: ISO 8601
+          nationality:
+            maxLength: 2
+            minLength: 2
+            type: string
+            description: Código del país de la nacionalidad del cliente.
+            format: ISO 3166-1 alfa 2
+          knows_language:
+            maxLength: 2
+            minLength: 2
+            type: string
+            description: Código del idioma preferido de contacto.
+            format: ISO 639-1
+          tagus:
+            uniqueItems: true
+            type: array
+            description: Array de token tagus
+            items:
+              maxLength: 120
+              minLength: 1
+              pattern: "^[0-9a-zA-Z]+$"
+              type: string
+          commercial_name:
+            maxLength: 255
+            minLength: 1
+            type: string
+          legal_name:
+            type: string
+            description: "Id de la entidad referenciada. Razónn social, nombre legal de la persona jurídica."
+          type:
+            type: string
+            description: Campo que nos indicará si es una persona física o jurídica.
+            enum:
+             - NATURAL
+             - LEGAL
+    promotion:
+      required:
+       - name
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Código de plan de marketing
+        name:
+          type: string
+          description: Nombre del plan de marketing
+        promotional_action:
+          type: array
+          description: Array de acciones de marketing
+          items:
+            $ref: '#/components/schemas/action'
+        type_list:
+          uniqueItems: true
+          type: array
+          description: Códigos con los tipos de promoción
+          items:
+            minLength: 1
+            type: string
+        candidate_collective_list:
+          uniqueItems: true
+          type: array
+          description: Array de códigos de colectivos que debe tener el cliente
+          items:
+            maxLength: 5
+            minLength: 5
+            type: string
+        forbidden_collective_list:
+          uniqueItems: true
+          type: array
+          description: Array de códigos de colectivos que no debe tener el cliente
+          items:
+            maxLength: 5
+            minLength: 5
+            type: string
+      description: Plan de Marketing
+    action:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Código de la acción de marketing
+      description: Información de una acción de marketing
+    consent:
+      type: object
+      properties:
+        identifier:
+          pattern: "[0-9]{4}"
+          type: string
+          description: Código del consentimiento
+        response:
+          type: string
+          description: Respuesta del consentimiento en base a sus finalidades
+          enum:
+           - ACCEPTED
+           - NO_REQUESTED
+           - DENIED
+           - LATER
+           - NEVER
+        status:
+          type: string
+          description: Estado del consentimiento en base a sus finalidades
+          enum:
+           - PENDING
+           - REVIEW
+           - DONE
+        finalities:
+          type: array
+          description: Información de las finalidades del cliente
+          items:
+            $ref: '#/components/schemas/finality'
+        functions:
+          type: array
+          description: Información de las funciones del consentimiento
+          items:
+            $ref: '#/components/schemas/function'
+      description: Información de un consentimiento de un cliente
+    finality:
+      type: object
+      properties:
+        identifier:
+          pattern: "[0-9]{3}"
+          type: string
+          description: Código de la finalidad
+        response:
+          type: string
+          description: Respuesta de la finalidad
+          enum:
+           - ACCEPTED
+           - DENIED
+           - LATER
+           - NEVER
+        status:
+          type: string
+          description: Estado de la finalidad
+          enum:
+           - PENDING
+           - REVIEW
+           - DONE
+        date_response:
+          type: string
+          description: Fecha de respuesta a la finalidad
+      description: Información de una finalidad de un cliente
+    function:
+      type: object
+      properties:
+        identifier:
+          pattern: "[0-9]{2}"
+          type: string
+          description: Código de la función
+        description:
+          type: string
+          description: Descripción de la finalidad
+        capture_point:
+          type: string
+          description: Sistema
+      description: Información de la función de un consentimiento
+    extended_tag:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identificador del tag, en este caso el propio tag"
+        entities:
+          type: array
+          description: Array de tags
+          items:
+            $ref: '#/components/schemas/entity_tag'
+      description: Representa la información de un tag
+    entity_tag:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador del punto de contacto o medio de pago.
+        type:
+          $ref: '#/components/schemas/entity_tag_type'
+      description: Información relativa al tag
+    entity_tag_type:
+      type: string
+      description: Tipo del punto de contacto o medio de pago.
+      enum:
+       - address
+       - email
+       - telephone
+       - payment_card
+    payment_card:
+      type: object
+      properties:
+        card_reference:
+          type: string
+          description: Referencia de la Tarjeta Bancaria o Número de Tarjeta ECI
+        payment_group_type:
+          type: object
+          properties:
+            name:
+              type: string
+              description: Identificador del tipo de pago (ECI o Bancaria)
+            alternate_name:
+              type: string
+              description: Alias de la tarjeta
+            description:
+              type: string
+              description: Descripción de la tarjeta
+          description: Tipo de tarjeta
+        tag:
+          type: array
+          description: Array de tags
+          items:
+            type: string
+        is_operative:
+          type: boolean
+          description: Indicador de si el método de pago está activo/operativo
+        expires:
+          pattern: "(\\d{2})(0[1-9]|1[012])"
+          type: string
+          description: Fecha de caducidad de la tarjeta
+        bin:
+          type: string
+          description: BIN del método de pago. 6 primeras posiciones
+        masked_pan:
+          type: string
+          description: 4 últimas posiciones del método de pago
+        payment_group_method:
+          type: object
+          properties:
+            identifier:
+              type: string
+              description: El identificador del método de pago
+          description: Tipo del método de pago
+      description: Información relativa a un método de pago
+    error_response:
+      title: error
+      type: object
+      properties:
+        error:
+          title: error
+          required:
+           - code
+          type: object
+          properties:
+            code:
+              type: string
+              description: Código del error.
+            message:
+              type: string
+              description: Descripción del error que se ha produccido.
+            details:
+              type: array
+              description: Detalle del error (parámetros de entrada afectados).
+              items:
+                type: string
+            request_id:
+              type: string
+              description: Id de la petición.
+              format: uuid
+          description: Datos del error
+      description: Respuesta con un error
+    replicate_response:
+      type: object
+      properties:
+        result:
+          type: array
+          description: Array de replicación
+          items:
+            $ref: '#/components/schemas/audit_replicate'
+        has_next:
+          type: boolean
+          description: Indica si hay mas replicaciones que no han sido devueltas
+        last_change_id:
+          type: string
+          description: Último ID devuelto
+        last_timestamp:
+          type: string
+          description: Último 'timestamp' devuelto
+          format: date-time
+      description: Respuesta de la replicación
+    audit_replicate:
+      description: Representación de un dato replicado
+      allOf:
+       -
+        type: object
+        properties:
+          _id:
+            type: string
+            description: ID del movimiento de auditoria
+          timestamp:
+            type: string
+            description: Fecha de modificación
+            format: date-time
+          action_type:
+            type: string
+            description: Tipo de acción
+          url:
+            type: string
+            description: URL del recurso
+          source:
+            type: string
+            description: Sistema que generó el cambio
+          document:
+            type: object
+            properties: {}
+            description: Documento modificado
+          patch:
+            type: array
+            description: Array con las acciones del 'patch'
+            items:
+              type: string
+          crud_version:
+            type: string
+            description: Versión del recurso
+          ignore_to:
+            type: array
+            description: Array de sistemas a los que no replicar el cambio
+            items:
+              type: string
+              description: Codigo del sistema
+          operation_id:
+            type: string
+            description: UUID de la operación que generó el cambio
+          origin:
+            type: string
+            description: Origen
+          authorization:
+            type: string
+            description: Autorización
+          jwtissuer:
+            type: string
+            description: Distribuidor del JWT
+          eci_referer:
+            type: string
+            description: Valor de la cabecera 'eci-referer'
+    order_preferences:
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: Identificador
+        name:
+          type: string
+          description: Nombre
+        description:
+          type: string
+          description: Descripción
+        type:
+          type: string
+          description: Tipo
+        is_selectable:
+          type: boolean
+          description: Si es seleccionable
+      description: Las preferencias del pedido del cliente
+  responses:
+    "400":
+      description: Hay un error sintáctico en la petición que impide llevarla a cabo. </br>En el cuerpo de la respuesta se describe el problema.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+    "401":
+      description: Uno o más recursos de los referenciados no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+    "404":
+      description: Uno o más recursos de los referenciados no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+    "409":
+      description: Uno o más recursos de los referenciados no existe.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+    "422":
+      description: No es posible solicitar una activación para un usuario que ya está activo.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+    "424":
+      description: La petición no ha podido procesarse porque no existe ninguna cuenta en el Registro Único con el CUC indicado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+    "451":
+      description: La cuenta del cliente no es accesible por motivos legales.</br>Generalmente se ha solicitado su baja por una petición *ARCO*.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+    "500":
+      description: Error de servidor interno.</br>Se ha producido un error inesperado al realizar la operación.</br>El detalle del error se proporciona en el contenido de la respuesta.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/error_response'
+  parameters:
+    x_client:
+      name: eci-x-client
+      in: header
+      description: Cabecera HTTP que indica el servicio externo origen de la petición. Por defecto se considera que el sistema es la web de El Corte Inglés.
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: string
+    if_match:
+      name: if-match
+      in: header
+      description: "Cabecera HTTP donde se debe indicar el valor de la cabecera ETag recibida en operaciones GET, PUT y PATCH. Se usa para garantizar el control de concurrencia optimista sobre un recurso."
+      required: true
+      style: simple
+      explode: false
+      schema:
+        type: string
+    param_identifier:
+      name: identifier
+      in: path
+      description: Identificador SUB del Customer
+      required: true
+      style: simple
+      explode: false
+      schema:
+        maxLength: 10
+        minLength: 10
+        pattern: "^\\d{10}$"
+        type: string
+    eci_function:
+      name: eci-function
+      in: header
+      description: |-
+        Código o códigos de la función requerida.
+
+        En caso de indicar varios se deben separar por coma.
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: string
+    eci_consent:
+      name: eci-consent
+      in: header
+      description: |-
+        Código o códigos del consentimiento requerido.
+
+        En caso de indicar varios se deben separar por coma.
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: string
+    eci_finality:
+      name: eci-finality
+      in: header
+      description: |-
+        Código o códigos de la finalidad requerida.
+
+        En caso de indicar varios se deben separar por coma.
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: string
+    identifier:
+      name: identifier
+      in: query
+      description: Código de la cuenta del Cliente en el Registro Único.
+      required: false
+      style: form
+      explode: true
+      schema:
+        maxLength: 10
+        minLength: 10
+        pattern: "^\\d{10}$"
+        type: string
+    limit:
+      name: limit
+      in: query
+      description: Número de registros a consultar
+      required: false
+      style: form
+      explode: true
+      schema:
+        minimum: 1
+        type: number
+    _id:
+      name: _id
+      in: query
+      description: Identificador a partir del cual se devolverán resultados.
+      required: true
+      style: form
+      explode: true
+      schema:
+        type: string
+    source_excluded:
+      name: source_excluded
+      in: query
+      description: "Listado de sources que se excluirán de la consulta. Se pueden concatenar todos los necesarios, separándolos por una coma ','"
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    source_included:
+      name: source_included
+      in: query
+      description: "Listado de sources a incluir en la consulta. Se pueden concatenar todos los necesarios, separándolos por una coma ','"
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    eci_customer_fusion:
+      name: eci-customer-fusion
+      in: header
+      description: Cabecera HTTP que indica si se trata de una operación asociada a una fusión.
+      required: false
+      style: simple
+      explode: false
+      schema:
+        type: boolean
+  requestBodies:
+    body_post_customer:
+      description: "Datos personales que se quieren añadir asociados a la cuenta del cliente. Es obligatorio como mínimo un punto de contacto informado (dirección, email o teléfono)"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/post_customer'
+      required: true
+    body_put_customer:
+      description: "Datos personales que se quieren añadir asociados a la cuenta del cliente. Es obligatorio como mínimo un punto de contacto informado (dirección, email o teléfono)"
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/customer'
+      required: true
+    body_customers_search:
+      description: Criterios de búsqueda
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/post_customers_search'
+      required: true
+    body_post_cuc_set_info:
+      description: Estructura que representa la información de los identificadores de tipo 'cuc' del cliente.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/post_cuc_set_info'
+      required: true
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://test.com
+          scopes: {}
+x-throttling-tier: Unlimited
+x-wso2-cors:
+  corsConfigurationEnabled: false
+  accessControlAllowOrigins:
+   - '*'
+  accessControlAllowCredentials: false
+  accessControlAllowHeaders:
+   - authorization
+   - Access-Control-Allow-Origin
+   - Content-Type
+   - SOAPAction
+  accessControlAllowMethods:
+   - GET
+   - PUT
+   - POST
+   - DELETE
+   - PATCH
+   - OPTIONS
+x-wso2-production-endpoints:
+  urls:
+   - https://clientes-ru-customers-eci.qru-customers-eci.eci.geci
+  type: http
+x-wso2-sandbox-endpoints:
+  urls:
+   - https://clientes-ru-customers-eci.qru-customers-eci.eci.geci
+  type: http
+x-wso2-basePath: /customers/eci/v1/1.4.0
+x-wso2-transports:
+ - http
+ - https
+x-wso2-response-cache:
+  enabled: false
+  cacheTimeoutInSeconds: 300
